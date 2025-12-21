@@ -6,7 +6,7 @@ pipeline {
     stages {
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME ./react-flask-mongodb/react-flask-mongodb-v1'
+                sh 'docker build -t $IMAGE_NAME ./react-flask-mongodb-v1'
             }
         }
         stage('Run Docker Container') {
