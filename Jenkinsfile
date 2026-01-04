@@ -1,32 +1,55 @@
 pipeline {
     agent any
+
     environment {
-        IMAGE_NAME = "dinobear/react-flask-mongodb:latest"
+        IMAGE_NAME = "dinobear/react-flask-mongodb"
+        IMAGE_TAG = "latest"
+        DOCKER_CREDENTIALS = "dockerhub-creds" // Jenkins credential ID
     }
+
     stages {
+
+        stage('Checkout SCM') {
+            steps {
+                git(
+                    url: 'https://github.com/Douaa-Hadad/react-flask-mongodb.git',
+                    branch: 'main',
+                    credentialsId: 'github-creds'
+                )
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME ./react-flask-mongodb-v1'
-            }
-        }
-        stage('Run Docker Container') {
-            steps {
-                sh 'docker run -d -p 3000:3000 --name react-flask-mongodb $IMAGE_NAME'
-            }
-        }
-        stage('Push to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh 'docker login -u $USER -p $PASS'
-                    sh 'docker push $IMAGE_NAME'
+                script {
+                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "./react-flask-mongodb-v1")
                 }
             }
         }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKER_CREDENTIALS}") {
+                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
+                    }
+                }
+            }
+        }
+
+        stage('Clean Up') {
+            steps {
+                sh "docker image prune -f"
+            }
+        }
     }
+
     post {
-        always {
-            sh 'docker stop react-flask-mongodb || true'
-            sh 'docker rm react-flask-mongodb || true'
+        success {
+            echo "✅ Docker image built and pushed successfully!"
+        }
+        failure {
+            echo "❌ Build failed. Check logs for details."
         }
     }
 }
