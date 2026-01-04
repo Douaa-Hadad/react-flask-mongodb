@@ -2,9 +2,10 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "dinobear/react-flask-mongodb"
-        IMAGE_TAG = "latest"
-        DOCKER_CREDENTIALS = "dockerhub-creds" // Jenkins credential ID
+        DOCKERHUB_CREDS = "dockerhub-creds"
+        BACKEND_IMAGE = "dinobear/todo-backend"
+        FRONTEND_IMAGE = "dinobear/todo-frontend"
+        TAG = "latest"
     }
 
     stages {
@@ -19,19 +20,24 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Backend Image') {
             steps {
-                script {
-                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "./react-flask-mongodb-v1")
-                }
+                sh "docker build -t ${BACKEND_IMAGE}:${TAG} ./backend"
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Build Frontend Image') {
+            steps {
+                sh "docker build -t ${FRONTEND_IMAGE}:${TAG} ./frontend"
+            }
+        }
+
+        stage('Push Images to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKER_CREDENTIALS}") {
-                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKERHUB_CREDS) {
+                        sh "docker push ${BACKEND_IMAGE}:${TAG}"
+                        sh "docker push ${FRONTEND_IMAGE}:${TAG}"
                     }
                 }
             }
@@ -46,10 +52,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Docker image built and pushed successfully!"
+            echo "✅ CI/CD Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Build failed. Check logs for details."
+            echo "❌ Pipeline failed. Check logs."
         }
     }
 }
